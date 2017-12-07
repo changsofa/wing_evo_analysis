@@ -1,0 +1,327 @@
+---
+title: "MorphEvo_Hema_Analysis"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=F, warning=F)
+```
+This document details the analysis done for Chang et al (2018) using [R Markdown](http://rmarkdown.rstudio.com) Notebook format. The goal of these set of analysis is to explore morphological traits in male and female mosquitoes, and determine if blood-feeding in females has been associated with changes in those traits as well as their relative traits.
+
+```{r echo = FALSE}
+
+## First, we set up the environment and import data. 
+# 2017 Evo Analysis 
+library(phytools)
+# library(reshape)
+library(ggplot2)
+# library(plyr)
+library(nlme) # esssential to use gls()
+library(multcomp) # for cld() n more
+
+setwd("C:/Users/sofa/Dropbox/Wing Evo Project/Analysis/2017 summer/Rproject_evo")
+rm(list=ls())
+cul.data<-read.table("cul.data.cleanNov08_1606.txt")
+colnames(cul.data)[13]<-"wingL"
+colnames(cul.data)[15]<-"wingArea"
+# Make a more figure-friendly gs_sp abbreviation
+cul.data$gssp_abbrev <- substr( cul.data$gs_sp, 1,5)
+# Make a hematophagy list by unique gs_sp
+cul.hema = read.csv('wings.hema.20171113.csv',sep=",")
+cul.hema <- cul.hema[order(cul.hema$gs_sp),]
+
+```
+# I) Hematophagy as three categories
+This section conducts the analysis distinguishing hematophagy as three distinct categories: blood-feeders ("blood",0), facultative blood-feeders ("facbl",1), and non-blood-feeders ("nobld",2). 
+
+```{r}
+### This code set up the DIFFERENT HEMA DEFINITIONS
+## as factor
+hema.1a<-cul.hema$hema1
+# as numeric
+hema.1b<-cul.hema$hema1
+  levels(hema.1b)<-c(0,1,2)
+  hema.1b<-as.numeric(as.character(hema.1b))
+  
+## as factor 
+# hema.2a<-sub("facbl","blood",cul.data$hema) 
+  # hema.2a<-as.factor(hema.2a) 
+# as numeric
+# hema.2b<-hema.2a 
+#   levels(hema.2b)<-c(0,1)
+#   hema.2b<-as.numeric(as.character(hema.2b))
+  
+hema.2a<-cul.hema$hema3
+# as numeric
+hema.2b<-cul.hema$hema3
+  levels(hema.2b)<-c(0,1)
+  hema.2b<-as.numeric(as.character(hema.2b))
+  
+# ## as factor
+# hema.3a<-cul.hema$hema3
+# # as numeric
+# hema.3b<-cul.hema$hema3
+#   levels(hema.3b)<-c(1,2,3,0)
+#   hema.3b<-as.numeric(as.character(hema.3b))
+
+```
+
+## I.A) Within each species, do F vs M traits differ?
+This section aims to test whether the morphologcal traits differ between males and females, disregarding the blood-feeding habit.
+
+First, some plots to explore the raw data:
+
+```{r}
+# The following gives you all traits' names. You can pick whichever variable to plot.
+
+# ggplot(aes(y = wingL, x = gssp_abbrev, fill=sex), data = cul.data) + 
+# ggplot(aes(y = wingL, x = sex, fill=gssp_abbrev), data = cul.data) +
+ggplot(aes(y = wingL, x = gssp_abbrev, fill=sex), data = cul.data) +
+  geom_boxplot()+
+  # coord_flip() +
+  # facet_grid(sex~.)+
+  ylab('wing length (mm)')+
+  facet_grid(sex~., scales = "free", space = "free")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 0, vjust = 0.25))
+```
+
+This plot shows the boxplot of wing length per genus_species and organized by sex. Female and male traits seem to follow similar trends, visually suggesting that the two sexes are not very different within genus species. It may be worth noting that the largest specimens were the male *Toxorhynchies*, but no other males reach that size, whereas for females, there are at least three species that are larger than 5.5 mm in wing length. For traits other than wing Length also showed the same , please see the separate pdf.
+
+```{r}
+# The following gives you all traits' names. You can pick whichever variable to plot.
+# colnames(cul.data[4:27]) 
+cul.hema$hema1->xlabel_colors
+levels(xlabel_colors)<-c("2","1","3")
+as.numeric(as.character(xlabel_colors))->xlabel_colors
+
+# ggplot(aes(y = wingL, x = gssp_abbrev, fill=sex), data = cul.data) + 
+# ggplot(aes(y = wingL, x = sex, fill=gssp_abbrev), data = cul.data) +
+ggplot(aes(y = wingL, x = gssp_abbrev, fill=sex), data = cul.data) +
+  geom_boxplot()+
+  # coord_flip() +
+  # facet_grid(sex~.)+
+  ylab('wing length (mm)')+
+  facet_grid(sex~hema, scales = "free", space = "free") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0, vjust = 0.25))
+```
+
+Now, we generate the same plot but group them based on the hematophagous habit of the females. Generally, bloodfeeding and facultatively bloodfeeding species seem to have simlar wing length ranges. By contrast, the non-bloodfeeders are characterized by minimum and maximum extremes. 
+
+What if hema is 4 characters?
+```{r}
+# The following gives you all traits' names. You can pick whichever variable to plot.
+# colnames(cul.data[4:27]) 
+cul.hema$hema4->xlabel_colors
+levels(xlabel_colors)<-c("2","1","3","4")
+as.numeric(as.character(xlabel_colors))->xlabel_colors
+
+values <- cul.hema$hema4
+cul.data$hema <- values[match(cul.data$gs_sp, cul.hema$gs_sp)] #match & replace
+# colnames(cul.data.raw)[3] <- "hema"
+
+
+# ggplot(aes(y = wingL, x = gssp_abbrev, fill=sex), data = cul.data) + 
+# ggplot(aes(y = wingL, x = sex, fill=gssp_abbrev), data = cul.data) +
+ggplot(aes(y = wingL, x = gssp_abbrev, fill=sex), data = cul.data) +
+  geom_boxplot()+
+  # coord_flip() +
+  # facet_grid(sex~.)+
+  ylab('wing length (mm)')+
+  facet_grid(sex~hema, scales = "free", space = "free") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0, vjust = 0.25))
+
+ggplot(aes(y = wingL, x = sex, fill=sex), data = cul.data) +
+  geom_boxplot()+
+  # coord_flip() +
+  # facet_grid(sex~.)+
+  ylab('wing length (mm)')+
+  facet_grid(.~hema, scales = "free", space = "free") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0, vjust = 0.25))
+
+```
+
+
+To determine whether males and females differ:
+* Mann-Whitney U test (non parametric...), M vs F
+* PGLS
+
+## I.B) Do traits differ in females?
+I will now take the female subset of each trait summarized it by genus species and analyze whether there are morphological features that are different between the females of the three categories of feeding.
+```{r}
+# rm(list=ls())
+cul.data<-read.csv("cul.data_for_Hema_F_M_arranged2017-10-30_2059.txt", sep=",")
+cul.F<-cul.data[,c(1,2,grep("F_",names(cul.data)))]
+# 3:9 = numeric
+# 10:16 = non dimentional
+```
+* 1 way ANOVA (including thorax vol) for linear traits in Females
+```{r}
+# 3:9 = numeric
+vars_lm <- data.frame(matrix(ncol = 15, nrow = 0),stringsAsFactors=FALSE)
+names(vars_lm) <- c("Vars","Df", "Sum Sq", "Mean Sq","F value", "Pr(>F)","blood","facbl","nobld", "tucky-BL","tucky-FB","tucky-NB")
+
+for(n in 3:9){
+  # print(paste(n,names(cul.F[n])))
+  y<-cul.F[,n]
+  lmModel1 <- lm(y ~ hema , data = cul.F)
+  
+  tuk<-cld(glht(lmModel1, linfct = mcp(hema = "Tukey")))
+  tuk <- tuk$mcletters$Letters
+  
+  midstep <- cbind(as.character(colnames(cul.F[n])),
+                   anova(lmModel1), 
+                   t(tuk))
+   names(midstep) <- c("Vars","Df", "Sum Sq", "Mean Sq","F value", "Pr(>F)", "tucky-BL","tucky-FB","tucky-NB")
+  midstep[2,7:9]<-NA
+  vars_lm <-rbind(vars_lm, midstep)
+}
+rm(midstep)
+# vars_lm$`Pr(>F)`<0.05
+# ## Add column for *** sig notation
+vars_lm$sig = NA
+for(n in 1:dim(vars_lm)[1]){ #print(n)
+  if(is.na(vars_lm$`Pr(>F)`[n]) ){ #print("done")
+  }else{
+    if(vars_lm$`Pr(>F)`[n] < 0.05){vars_lm$sig[n] = "*"}
+    if(vars_lm$`Pr(>F)`[n] < 0.01){vars_lm$sig[n] = "**"}
+    if(vars_lm$`Pr(>F)`[n] < 0.001){vars_lm$sig[n] = "***"}
+    if(vars_lm$`Pr(>F)`[n] < 0.0001){vars_lm$sig[n] = "****"}
+  } # close the else term
+}
+vars_lm
+
+```
+
+* 1 way ANCOVA for linear traits
+```{r}
+vars_lm <- data.frame(matrix(ncol = 9, nrow = 0))
+names(vars_lm) <- c("Vars","Df", "Sum Sq", "Mean Sq","F value", "Pr(>F)", "tucky-BL","tucky-FB","tucky-NB")
+# grep("tx",names(cul.F))
+# thorax vol item is in column 8
+for(n in c(3:7,9)){
+  # print(paste(n,names(cul.F[n])))
+  y<-cul.F[,n] # select data
+  # run linear model/ ANOCOVA
+  lmModel <- lm(y ~ hema + F_tx.volume, data = cul.F)
+  
+  tuk <- cld(glht(lmModel, linfct = mcp(hema = "Tukey")))
+  tuk <- tuk$mcletters$Letters#, sep=",") 
+        # extracts just the letters; tuk has everything.Try plot(tuk).
+     midstep <- cbind(as.character(colnames(cul.F[n])),
+                     anova(lmModel),
+                     t(tuk))
+    midstep[2:3,7:9] <-NA
+    names(midstep) <- c("Vars","Df", "Sum Sq", "Mean Sq","F value", "Pr(>F)", "tucky-BL","tucky-FB","tucky-NB")
+    
+    vars_lm <-rbind(vars_lm, midstep)
+    # } # closes the anova clause
+    # } # closes the skippied vars
+}
+
+# ## Add column for *** sig notation
+vars_lm$sig = NA
+for(n in 1:dim(vars_lm)[1]){ #print(n)
+  if(is.na(vars_lm$`Pr(>F)`[n]) ){ #print("done")
+  }else{
+    if(vars_lm$`Pr(>F)`[n] < 0.05){vars_lm$sig[n] = "*"}
+    if(vars_lm$`Pr(>F)`[n] < 0.01){vars_lm$sig[n] = "**"}
+    if(vars_lm$`Pr(>F)`[n] < 0.001){vars_lm$sig[n] = "***"}
+    if(vars_lm$`Pr(>F)`[n] < 0.0001){vars_lm$sig[n] = "****"}
+  } # close the else term
+}
+vars_lm
+```
+
+* 1 way ANOVA for non-dimentional traits
+```{r}
+# 10:16 = non dimentional
+vars_lm <- data.frame(matrix(ncol = 15, nrow = 0),stringsAsFactors=FALSE)
+names(vars_lm) <- c("Vars","Df", "Sum Sq", "Mean Sq","F value", "Pr(>F)","blood","facbl","nobld", "tucky-BL","tucky-FB","tucky-NB")
+
+for(n in 10:16){
+  # print(paste(n,names(cul.F[n])))
+  y<-cul.F[,n]
+  lmModel1 <- lm(y ~ hema , data = cul.F)
+  
+  tuk<-cld(glht(lmModel1, linfct = mcp(hema = "Tukey")))
+  tuk <- tuk$mcletters$Letters
+  
+  midstep <- cbind(as.character(colnames(cul.F[n])),
+                   anova(lmModel1), 
+                   t(tuk))
+   names(midstep) <- c("Vars","Df", "Sum Sq", "Mean Sq","F value", "Pr(>F)", "tucky-BL","tucky-FB","tucky-NB")
+  midstep[2,7:9]<-NA
+  vars_lm <-rbind(vars_lm, midstep)
+}
+rm(midstep)
+# vars_lm$`Pr(>F)`<0.05
+# ## Add column for *** sig notation
+vars_lm$sig = NA
+for(n in 1:dim(vars_lm)[1]){ #print(n)
+  if(is.na(vars_lm$`Pr(>F)`[n]) ){ #print("done")
+  }else{
+    if(vars_lm$`Pr(>F)`[n] < 0.05){vars_lm$sig[n] = "*"}
+    if(vars_lm$`Pr(>F)`[n] < 0.01){vars_lm$sig[n] = "**"}
+    if(vars_lm$`Pr(>F)`[n] < 0.001){vars_lm$sig[n] = "***"}
+    if(vars_lm$`Pr(>F)`[n] < 0.0001){vars_lm$sig[n] = "****"}
+  } # close the else term
+}
+vars_lm
+
+```
+* PGLS to take into account phylogenetic history
+
+```{r}
+### Import Tree & make ultrametric & plot tree===
+# https://lukejharmon.github.io/ilhabela/instruction/2015/07/03/PGLS/
+cul.tree = read.nexus("Culicid_tree_2017.nex") #read nexus file
+# turns the randomly generated branch lengths ultrametric
+cul.tree = chronopl(cul.tree, lambda=0) 
+
+vars_pgls <- data.frame(matrix(ncol = 9, nrow = 0))
+names(vars_pgls)<-c("Vars","numDF", "F-value", "p-value","","lambda-of-residuals", "logL", "logL0", "P"  )
+
+# 10:16 = nondim in F
+for(n in 10:16){ # choose only the non dimentional vars
+  #print(paste(n,names(cul.F[n])))
+  y<-cul.data[,n]
+  pglsModel1 <- gls(y ~ hema, 
+                    correlation = corBrownian(phy = cul.tree),
+                    data = cul.F, method = "ML")
+  midstep <-  cbind(as.character(colnames(cul.F[n])), 
+                      anova(pglsModel1),"",
+                      as.data.frame( phylosig(cul.tree,                                   as.vector(pglsModel1$residuals),method="lambda",test=TRUE) ))
+  names(midstep)<-c("Vars","numDF", "F-value", "p-value","","lambda-of-residuals", "logL", "logL0", "P"  )
+    
+  vars_pgls <-rbind(vars_pgls, midstep)
+}
+rm(midstep)
+
+# ## Add column for *** sig notation
+# vars_pgls$`Pr(>F)`<0.05
+vars_pgls$sig = NA
+for(n in seq(from=2, to=dim(vars_pgls)[1], by=2)){ #print(n)
+  if(is.na(vars_pgls$`p-value`[n]) ){ #print("done")
+  }else{
+    if(vars_pgls$`p-value`[n] < 0.05){vars_pgls$sig[n] = "*"}
+    if(vars_pgls$`p-value`[n] < 0.01){vars_pgls$sig[n] = "**"}
+    if(vars_pgls$`p-value`[n] < 0.001){vars_pgls$sig[n] = "***"}
+    if(vars_pgls$`p-value`[n] < 0.0001){vars_pgls$sig[n] = "****"}
+  } # close the else term
+}
+
+vars_pgls
+
+
+```
+
+## I.C) Sexual size dimorphism
+Another way to quantify trait difference due to sex is to compute the sexual size dimorphism as defined in Stillwell et al (2010). We could determine whether the proportion of female-biased trait is larger in hematophagous species. 
+* 1 way ANOVA & PGLS
+
+## I.D) Not separating traits by sex
+* 2 way ANCOVA for linear traits
+* 2 way ANOVA for non-dimentional traits
+
+# II) Hematophagy as two categories
+TBD. Same analysis steps as section I will be followed. The difference is that hematophagy is now a binary trait: blood-feeders ("blood",0) and non-blood-feeders ("nobld",1). Facultative blood-feeders are pooled with the blood-feeders.
