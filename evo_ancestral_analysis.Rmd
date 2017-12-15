@@ -6,6 +6,8 @@ output: word_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, message=F, warning=F)
 ```
+# Newtitle4
+untitled
 
 # What is the ancestral state for blood-feeding?
 Hematophagy is the blood-feeding habit of various arthropods. Mosquitoes bloodfeed, but not all of them do so. Males never bloodfeed, most females bloodfeed to get nutrients to lay eggs. Interestingly, females do not always rely on blood, and some have even lost the capability to drink blood. 
@@ -37,23 +39,19 @@ plot_ancestral_rec<-function(x,cols){
   # dev.new()
   par(mfrow=c(2,1))
   # ANCESTRAL STATE RECONSTRUCTTION
-  # In visual format, these are the data that we have:
-  # plotTree(cul.tree,fsize=0.8,ftype="i")
-  # tiplabels(pie=to.matrix(x,sort(unique(x))),piecol=cols,cex=0.3)
-  # add.simmap.legend(colors=cols,prompt=FALSE,x=0.9*par()$usr[1],
-  #                   y=-max(nodeHeights(tree)),fsize=0.8)
-  
+
   ## Method 1: Estimate ancestral states under a Equal Rates (ER) model
   # Let's fit a single-rate model & reconstruct ancestral states at internal nodes in the tree.
-  fitER<-ace(x,tree,model="ARD",type="discrete")
+  ARD.ordered<-matrix(c(0,1,0,2,0,3,0,4,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  fit<-ace(x,tree,model=ARD.ordered,type="discrete")
   # fit<-fastAnc(tree,x,vars=TRUE,CI=TRUE)
-  fitER
-  round(fitER$lik.anc,3)
+  fit
+  round(fit$lik.anc,3)
   # The element lik.anc gives us the marginal ancestral states, also known as the 'empirical Bayesian posterior probabilities.'
   # It is fairly straightforward to overlay these posterior probabilities on the tree:
   plotTree(tree,fsize=0.8,ftype="i")
   nodelabels(node=1:tree$Nnode+Ntip(tree),
-             pie=fitER$lik.anc,piecol=cols,cex=0.5)
+             pie=fit$lik.anc,piecol=cols,cex=0.5)
   tiplabels(pie=to.matrix(x,sort(unique(x))),piecol=cols,cex=0.3)
   add.simmap.legend(colors=cols,prompt=FALSE,x=0.9*par()$usr[1], 
                     y=-max(nodeHeights(tree))+8,fsize=0.7)
@@ -72,7 +70,7 @@ plot_ancestral_rec<-function(x,cols){
   #### SIMULATIONSSSSS using baesyian mdels:
   # A single stochastic character map does not mean a whole lot in isolation - we need to look at the whole distribution from a sample of stochastic maps. This can be a bit overwhelming. The following code generates 100 stochastic character maps from our dataset, which could be plotted but I removed the actual plot and saved the simulation:
   ## make.simmap is sampling character histories conditioned on the transition matrix
-  mtrees<-make.simmap(tree,x,model="ARD",nsim=100,pi="estimated")
+  mtrees<-make.simmap(tree,x,model=ARD.ordered,nsim=100,pi="estimated")
   ## plot all simulated trees
   # par(mfrow=c(10,10))
   # null<-sapply(mtrees,plot,colors=cols,lwd=1,ftype="off")
@@ -89,12 +87,12 @@ plot_ancestral_rec<-function(x,cols){
   add.simmap.legend(colors=cols,prompt=FALSE,x=0.9*par()$usr[1],
                     y=-max(nodeHeights(tree))+8,fsize=0.8)
   
-  # plot(fitER$lik.anc,pd$ace,xlab="marginal ancestral states",
+  # plot(fit$lik.anc,pd$ace,xlab="marginal ancestral states",
   #      ylab="posterior probabilities from stochastic mapping")
   # # lines(c(0,1),c(0,1),lty="dashed",col="red",lwd=2)
   
   ## Finally, since we obtained these inferences under exactly the same model, let's compare the posterior probabilities from stochastic mapping with our marginal ancestral states. In the former case, our probabilities were obtained by sampling from the joint (rather than marginal) probability distribution for the ancestral states.
-  # plot(fitER$lik.anc,pd$ace,xlab="marginal ancestral states",
+  # plot(fit$lik.anc,pd$ace,xlab="marginal ancestral states",
        # ylab="posterior probabilities from stochastic mapping")
   # lines(c(0,1),c(0,1),lty="dashed",col="red",lwd=2)
 }
@@ -113,14 +111,14 @@ plot_ancestral_rec(x,cols)
 ```
 
 ## Ancestral state of hematophagy as 3 categories, assuming facultative bloodfeeding is ancestral
-
-```{r , fig.width=5, fig.height=5.75}
+* current code is having some issues, but the output should be similar to the previous state, +/- 0.3 of differece between blood-feeders and facultative blood-feeders. Update TBD.
+```{r , fig.width=5, fig.height=5.75,eval = F }
 # hema2:	3 categories, NA= facbl
-x<-cul.hema$hema2
-names(x)<-cul.hema$gs_sp
-cols<-c("red","black","green3")
-names(cols)<-c("blood","facbl","nobld")
-plot_ancestral_rec(x,cols)
+# x<-cul.hema$hema2
+# names(x)<-cul.hema$gs_sp
+# cols<-c("red","black","green3")
+# names(cols)<-c("blood","facbl","nobld")
+# plot_ancestral_rec(x,cols)
 ```
 
 ## Ancestral state of hematophagy as 2 categories
@@ -144,83 +142,18 @@ names(cols)<-c("blood","facbl","nobld","oblig")
 plot_ancestral_rec(x,cols)
 ```
 
-<!-- ## Ancestral state of hematophagy as 3 categories, leaving unknown autogeny as NA  -->
-<!-- ```{r } -->
-<!-- # hema5:	3 categories, NA= missing info -->
-<!-- x<-cul.hema$hema5 -->
-<!-- names(x)<-cul.hema$gs_sp -->
-<!-- cols<-c("green3","red","magenta") -->
-<!-- cols<-setNames(palette()[1:length(unique(x))],sort(unique(x))) -->
-<!-- names(cols)<-levels(x) #nobld oblig present -->
-<!-- ``` -->
-
-# Analysis of morphological variables
-
-For this project, 24 variables were measured or calculated from the photographs of each mosquito species. For each species, we were able to get 5 males and 5 females representative of each species. The variables are as follow:
+# What if we trim the tree to look at autogeny?
 
 ```{r}
-names(cul.data)[c(-1,-2,-3,-ncol(cul.data))]
+# [!cul.hema$hema4=="blood"]
+drop<-as.character(cul.hema$gs_sp[cul.hema$hema4=="blood"])
+tree<-drop.tip(tree,drop)
+
+x<-cul.hema$hema1[!cul.hema$hema4=="blood"]
+names(x)<-cul.hema$gs_sp[!cul.hema$hema4=="blood"]
+cols<-c("red","black","green3")
+names(cols)<-c("blood","facbl","nobld")
+plot_ancestral_rec(x,cols)
 ```
 
-## PCA: Should we reduce the dimensions of the variables? 
-```{r}
-## PCA Analysis to see if I could reduce the dimentions
-# library(devtools)
-# install_github("ggbiplot", "vqv")
-# library(ggbiplot)
-# library(stats)
-
-cul.pca <- prcomp(na.omit(cul.data[c(-1,-2,-3,-ncol(sub.cul))]),
-                 center = TRUE,
-                 scale = TRUE) 
-# cul.data[cul.data$sex=="F",c(-1,-2,-3,-ncol(sub.cul))]
-
-plot(cul.pca, type = "l")
-summary(cul.pca)
-cul.pca_matrix<-cul.pca$rotation
-g <- ggbiplot(cul.pca, obs.scale = 1, var.scale = 1, 
-              groups = cul.data$gs_sp, ellipse = TRUE, 
-              circle = TRUE)
-g <- g + scale_color_discrete(name = '')
-g <- g + theme(legend.direction = 'horizontal', 
-               legend.position = 'top')
-print(g)
-```
-
-PCA1 explains ~ 60% of the variance, and PCA 2 explains ~16% of the variance. This may justify reduction of dimentions and keepin
-
-To further explore these variables, we first explore whether the males and females differ. 
-
-## Intraspecific: Do males and females differ?
-
-```{r }
-# 
-# pval.all<-data.frame(matrix(ncol = 0, nrow = 24))
-# pval.out<-data.frame()
-# for(n in 1:length(unique(cul.data$gs_sp))){
-#   sub.cul<-cul.data[cul.data$gs_sp == unique(cul.data$gs_sp)[n],]
-# 
-#   pval.out<-as.data.frame( sapply(names(sub.cul)[c(-1,-2,-3,-ncol(sub.cul))],
-#             function(x){
-#              t.test(sub.cul[sub.cul$sex=="F", x], 
-#                     sub.cul[sub.cul$sex=="M", x])$p.value 
-#                     }))
-#   
-#   colnames(pval.out)<-unique(cul.data$gs_sp)[n]
-#   pval.all<-cbind(pval.all, pval.out)
-# }
-# 
-# pval.diff<-pval.all<0.05
-# # For each species, in how many variable was there a difference between F/M 
-# colSums(pval.diff)
-```
-
-## Interspecific: Does hematophagy correlate with certain morphological traits?
-
-```{r}
-# rm(list=ls())
-cul.data<-read.csv("cul.data_for_Hema_F_M_arranged2017-10-30_2059.txt", sep=",")
-# remove male traits
-cul.data<-cul.data[-grepl('M_',names(cul.data))]
-```
 

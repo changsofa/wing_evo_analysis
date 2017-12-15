@@ -1,0 +1,172 @@
+---
+title: "evo_ancestral_model_comp"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=F, warning=F)
+```
+
+# What is the ancestral state for blood-feeding? Does the blood-feeding trait have a directionality?
+Hematophagy is the blood-feeding habit of various arthropods. Mosquitoes bloodfeed, but not all of them do so. Males never bloodfeed, most females bloodfeed to get nutrients to lay eggs. Interestingly, females do not always rely on blood, and some have even lost the capability to drink blood. 
+
+When the females do not depend on blood, they develop capability to lay eggs without blood, a charactristic known as autogeny. Autogeny has been present in 
+
+Whereas bloodfeeding as an ancestral state is well supported in literature, autogeny is not as clear. Some papers discuss it as a "seconary adaptation" (O'Meara), while others refer to it as "pleisiomorphic characteristic" (Coluzzi & Costantini).  Key papers summarizing concepts in autogeny discusses it as an "adaptive trait" (Downes).
+
+In this paper, we explore the different degrees of hematophagy as defined by presence and absence of blood-feeding and autogeny. The goal of this paper is to further the understanding of evolution of bloodfeeding in its diffrent degrees. 
+
+The published tree based on genetic and morphological characteristics (Reidnebach et al 2009) is used through these analysis:
+```{r echo=FALSE}
+### Import Tree & make ultrametric & plot tree===
+library("phytools")
+library(ggplot2)
+cul.tree = read.nexus("Culicid_tree_2017.nex") #read nexus file
+# turns the randomly generated branch lengths ultrametric
+# cul.tree = chronopl(cul.tree, lambda=0)
+tree<-cul.tree
+plot(tree, cex=.7, no.margin=T)
+
+cul.hema = read.csv('wings.hema.20171113.csv',sep=",")
+cul.hema <- cul.hema[order(cul.hema$gs_sp),]
+```
+To test whether hematophagy is ancestral, I first followed Harmon's tutorial which assumes Equals rate of evolution. This may not a good model, I thus tested a few other models:
+
+# Does character order improve model? Does it change if model assumes equal or different rates?
+
+To start this question, let us categorize hematophagy as bloodfeeders (blood), facultative bloodfeeders (facbl), and non-bloodfeeders (nobld), and assuming blood-feeding is ancetral.
+
+The models tested are Equal rates (ER), Symmetrical rates (SYM), and all-rates-different (ARD). The three models are inherently undordered, so I further coded all three models as ordered characters (i.e. a character can transition between A&B and B&C but not A and C).
+```{r echo=FALSE}
+  # http://blog.phytools.org/2016/03/comparing-alternative-models-for.html
+
+# USE HEMA as 3 categories, assuming bloodfeeding is ancestral
+x<-cul.hema$hema1
+names(x)<-cul.hema$gs_sp
+cols<-c("red","black","green3")
+names(cols)<-c("blood","facbl","nobld")
+
+# function to compare all models:
+  ## Method 1: Estimate ancestral states under a Equal Rates (ER) model
+get_all_aic<-function(x){
+  fitER<-fitMk(tree,x,model="ER",type="discrete")
+  # fitER
+  fitSYM<-fitMk(tree,x,model="SYM",type="discrete")
+  # fitSYM
+  fitARD<-fitMk(tree,x,model="ARD",type="discrete")
+  # fitARD
+
+if (length(unique(x))==3) {
+# ORDERED, REVERSIBLE
+  ER.ordered<-matrix(c(0,1,0,1,0,1,0,1,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  # ER.ordered
+  SYM.ordered<-matrix(c(0,1,0,1,0,2,0,2,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  # SYM.ordered
+  ARD.ordered<-matrix(c(0,1,0,2,0,3,0,4,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  # ard.ordered
+}
+
+if (length(unique(x))==2) {
+# ORDERED, REVERSIBLE
+  ER.ordered<-matrix(c(0,0,1,0),2,2,dimnames=list(c("blood","nobld"),c("blood","nobld")))
+  # ER.ordered
+  SYM.ordered<-matrix(c(0,0,1,0),2,2,dimnames=list(c("blood","nobld"),c("blood","nobld")))
+  # SYM.ordered
+  ARD.ordered<-matrix(c(0,0,1,0),2,2,dimnames=list(c("blood","nobld"),c("blood","nobld")))
+  # ard.ordered
+}
+
+fitER_ord<-fitMk(tree,x,model=ER.ordered,type="discrete")
+# fitER_ord
+fitSYM_ord<-fitMk(tree,x,model=SYM.ordered,type="discrete")
+# fitSYM_ord
+fitARD_ord<-fitMk(tree,x,model=ARD.ordered,type="discrete")
+# fitARD_ord
+
+aic<-as.matrix(sapply(list(ER=fitER,SYM=fitSYM,ARD=fitARD,
+                           ER.ord=fitER_ord,SYM.ord=fitSYM_ord,ARD.ord=fitARD_ord
+                           ),AIC))
+names(aic)<-rownames(aic)
+sort(aic)
+}
+get_all_aic(x)
+
+```
+
+Above is the sorted AIC scores of each model. This suggests that 1) models that assumed order were better fit than unordered models, and 2) all-rates-diferent models were best among the ordered models. 
+
+## What if character is irreversible? Does it change if the model assumes equal or different rates?
+We further test if irreversibility of the state changes would improve the model.
+```{r}
+# ORDERED, IRREVERSIBLE
+  #BL->FL->NB
+  irrBL2NB<-matrix(c(0,0,0,1,0,0,0,1,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  #NB->FL->BL #expect AIC to be worst this one
+  irrNB2BL<-matrix(c(0,1,0,0,0,1,0,0,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  #FL->BL OR FL->NB
+  irrFB2BLNB<-matrix(c(0,1,0,0,0,0,0,1,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  
+fitirrBL2NB<-fitMk(tree,x,model=irrBL2NB,type="discrete")
+fitirrNB2BL<-fitMk(tree,x,model=irrNB2BL,type="discrete")
+fitirrFB2BLNB<-fitMk(tree,x,model=irrFB2BLNB,type="discrete")
+
+## Does changing the irreversible rates to unequal rates change the outcome?  
+  irrBL2NB2<-matrix(c(0,0,0,1,0,0,0,2,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  irrNB2BL2<-matrix(c(0,1,0,0,0,2,0,0,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  #FL->BL OR FL->NB
+  irrFB2BLNB2<-matrix(c(0,1,0,0,0,0,0,2,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+fitirrBL2NB2<-fitMk(tree,x,model=irrBL2NB2,type="discrete")
+fitirrNB2BL2<-fitMk(tree,x,model=irrNB2BL2,type="discrete")
+fitirrFB2BLNB2<-fitMk(tree,x,model=irrFB2BLNB2,type="discrete")
+# AIC(fitirrBL2NB2) #ERODES IT
+# AIC(fitirrNB2BL2) #IMPROVES IT
+# AIC(fitirrFB2BLNB2) # IMPROVES IT
+
+aic<-as.matrix(sapply(list(BL2NB.irrER=fitirrBL2NB, 
+                           NB2BL.irrER=fitirrNB2BL, 
+                           FB2BLNB.irrER=fitirrFB2BLNB,
+                           BL2NB.irrADR=fitirrBL2NB2, 
+                           NB2BL.irrADR=fitirrNB2BL2, 
+                           FB2BLNB.irrADR=fitirrFB2BLNB2
+                           ),AIC))
+names(aic)<-rownames(aic)
+sort(aic)
+```
+
+Regardless of the assumption about the rate of evolution (ER or ADR), including irreversibility in the model worsens the model. 
+
+Thus, for subsequent analysis, we shall make use of the model that assumes all-rates-different for evolutionary rates, and order (or directionality) in the model. The Qmatrix shall be:
+```{r}
+ARD.ordered
+```
+
+## What if hema character has 2 states?
+```{r}
+x<-cul.hema$hema3
+names(x)<-cul.hema$gs_sp
+get_all_aic(x)
+```
+Results seem to imply that it does not really matter, all models for the case where hema has 2 states may be perform similarly. An ordered binary state is just a 2x2 matrix with a single change, thus the "ordered" models were all the same regardless of assumption of rate of change.
+
+# Now what if we just observe the consequences of autogeny, independent of bloodfeeding?
+The issue with the original hematophagy states is that it relies on two descriptions in literature: 1) whether the mosquito is attracted to a host or seen imbibing on blood, and 2) whether the mosquito is autogenous, aka capable of laying eggs without blood. 
+
+So let's trim the tree to a smaller tree, removing species without Autogeny data.
+```{r}
+
+drop<-as.character(cul.hema$gs_sp[cul.hema$hema4=="blood"])
+tree.drop<-drop.tip(tree,drop)
+# dev.new()
+# par(mfrow=c(2,1))
+# plotTree(tree)
+plotTree(tree.drop)
+tree<-tree.drop
+
+x<-cul.hema$hema1[!cul.hema$hema4=="blood"]
+names(x)<-cul.hema$gs_sp[!cul.hema$hema4=="blood"]
+cols<-c("red","black","green3")
+names(cols)<-c("blood","facbl","nobld")
+
+get_all_aic(x)
+```
+

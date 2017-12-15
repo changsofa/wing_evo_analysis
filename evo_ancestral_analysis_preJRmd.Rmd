@@ -1,0 +1,119 @@
+---
+title: "Ancestral state reconstruction of hematophagy"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=F, warning=F)
+```
+
+# What is the ancestral state for blood-feeding?
+Hematophagy is the blood-feeding habit of various arthropods. Mosquitoes bloodfeed, but not all of them do so. Males never bloodfeed, most females bloodfeed to get nutrients to lay eggs. Interestingly, females do not always rely on blood, and some have even lost the capability to drink blood. 
+
+When the females do not depend on blood, they develop capability to lay eggs without blood, a charactristic known as autogeny. Autogeny has been present in 
+
+Whereas bloodfeeding as an ancestral state is well supported in literature, autogeny is not as clear. Some papers discuss it as a "seconary adaptation" (O'Meara), while others refer to it as "pleisiomorphic characteristic" (Coluzzi & Costantini).  Key papers summarizing concepts in autogeny discusses it as an "adaptive trait" (Downes).
+
+In this paper, we explore the different degrees of hematophagy as defined by presence and absence of blood-feeding and autogeny. The goal of this paper is to further the understanding of evolution of bloodfeeding in its diffrent degrees. 
+
+The published tree based on genetic and morphological characteristics (Reidnebach et al 2009) is used through these analysis:
+```{r echo=FALSE}
+### Import Tree & make ultrametric & plot tree===
+library("phytools")
+library(ggplot2)
+cul.tree = read.nexus("Culicid_tree_2017.nex") #read nexus file
+# turns the randomly generated branch lengths ultrametric
+# cul.tree = chronopl(cul.tree, lambda=0)
+tree<-cul.tree
+plot(tree, cex=.7, no.margin=T)
+
+cul.hema = read.csv('wings.hema.20171113.csv',sep=",")
+cul.hema <- cul.hema[order(cul.hema$gs_sp),]
+```
+
+# Does character order improve model? Does it change if model assumes equal or different rates?
+```{r echo=FALSE}
+  # http://blog.phytools.org/2016/03/comparing-alternative-models-for.html
+
+# USE HEMA as 3 categories, assuming bloodfeeding is ancestral
+x<-cul.hema$hema1
+names(x)<-cul.hema$gs_sp
+cols<-c("red","black","green3")
+names(cols)<-c("blood","facbl","nobld")
+
+  # ANCESTRAL STATE RECONSTRUCTTION
+  ## Method 1: Estimate ancestral states under a Equal Rates (ER) model
+  
+  fitER<-fitMk(tree,x,model="ER",type="discrete")
+  # fitER
+  fitSYM<-fitMk(tree,x,model="SYM",type="discrete")
+  # fitSYM
+  fitARD<-fitMk(tree,x,model="ARD",type="discrete")
+  # fitARD
+
+# ORDERED, REVERSIBLE
+  ER.ordered<-matrix(c(0,1,0,1,0,1,0,1,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  # ER.ordered
+  SYM.ordered<-matrix(c(0,1,0,1,0,2,0,2,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  # SYM.ordered
+  ARD.ordered<-matrix(c(0,1,0,2,0,3,0,4,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  # ard.ordered
+
+fitER_ord<-fitMk(tree,x,model=ER.ordered,type="discrete")
+# fitER_ord
+fitSYM_ord<-fitMk(tree,x,model=SYM.ordered,type="discrete")
+# fitSYM_ord
+fitARD_ord<-fitMk(tree,x,model=ARD.ordered,type="discrete")
+# fitARD_ord
+
+aic<-as.matrix(sapply(list(ER=fitER,SYM=fitSYM,ARD=fitARD,
+                           ER.ord=fitER_ord,SYM.ord=fitSYM_ord,ARD.ord=fitARD_ord
+                           ),AIC))
+names(aic)<-rownames(aic)
+sort(aic)
+
+```
+The models we tested are Equal rates (ER), Symmetrical rates (SYM), and all-rates-different (ARD)
+Sorted AIC scores of each model
+
+
+
+# What if character is irreversible? Does it change if the model assumes equal or different rates?
+```{r}
+# ORDERED, IRREVERSIBLE
+  #BL->FL->NB
+  irrBL2NB<-matrix(c(0,0,0,1,0,0,0,1,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  #NB->FL->BL #expect AIC to be worst this one
+  irrNB2BL<-matrix(c(0,1,0,0,0,1,0,0,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  #FL->BL OR FL->NB
+  irrFB2BLNB<-matrix(c(0,1,0,0,0,0,0,1,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  
+fitirrBL2NB<-fitMk(tree,x,model=irrBL2NB,type="discrete")
+fitirrNB2BL<-fitMk(tree,x,model=irrNB2BL,type="discrete")
+fitirrFB2BLNB<-fitMk(tree,x,model=irrFB2BLNB,type="discrete")
+
+## Does changing the irreversible rates to unequal rates change the outcome?  
+  irrBL2NB2<-matrix(c(0,0,0,1,0,0,0,2,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  irrNB2BL2<-matrix(c(0,1,0,0,0,2,0,0,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+  #FL->BL OR FL->NB
+  irrFB2BLNB2<-matrix(c(0,1,0,0,0,0,0,2,0),3,3,dimnames=list(c("blood","facbl","nobld"),c("blood","facbl","nobld")))
+fitirrBL2NB2<-fitMk(tree,x,model=irrBL2NB2,type="discrete")
+fitirrNB2BL2<-fitMk(tree,x,model=irrNB2BL2,type="discrete")
+fitirrFB2BLNB2<-fitMk(tree,x,model=irrFB2BLNB2,type="discrete")
+# AIC(fitirrBL2NB2) #ERODES IT
+# AIC(fitirrNB2BL2) #IMPROVES IT
+# AIC(fitirrFB2BLNB2) # IMPROVES IT
+
+aic<-as.matrix(sapply(list(BL2NB.irrER=fitirrBL2NB, 
+                           NB2BL.irrER=fitirrNB2BL, 
+                           FB2BLNB.irrER=fitirrFB2BLNB,
+                           BL2NB.irrADR=fitirrBL2NB2, 
+                           NB2BL.irrADR=fitirrNB2BL2, 
+                           FB2BLNB.irrADR=fitirrFB2BLNB2
+                           ),AIC))
+names(aic)<-rownames(aic)
+sort(aic)
+```
+
+
+
